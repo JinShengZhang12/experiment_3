@@ -171,7 +171,6 @@ class Pot {
   noFill(); stroke(100); rect(c.x,c.y,c.w,c.h);
 }
 
-
     // 培养皿文字
     fill(0); textSize(16); textAlign(CENTER);
     text("培养皿", this.x + this.w/2, this.y + this.h + 35);
@@ -278,7 +277,15 @@ class Sprout{
     this.speed=this.computeSpeed(cell);
     this.angle = random(-0.1,0.1);
   }
-  computeSpeed(cell){ if(!cell.water&&!cell.heat) return 0; if(cell.water&&cell.heat) return 5; return 1; }
+
+  // ✅ 这里是已修改的速度逻辑
+  computeSpeed(cell){ 
+    if(!cell.water && !cell.heat) return 0;         // 无水无温 → 不生长
+    if(cell.water && cell.heat) return 5;           // 有水+高温 → 最快
+    if(cell.water && !cell.heat) return 2;          // 有水+低温 → 次快
+    if(!cell.water && cell.heat) return 0.5;        // 高温缺水 → 最慢（甚至比低温有水还慢）
+  }
+
   grow(){
     if(this.height<this.maxHeight) this.height+=this.speed*0.2;
     this.angle = 0.05*sin(frameCount*0.1);
@@ -289,7 +296,6 @@ class Sprout{
     translate(this.x,this.y);
     rotate(this.angle);
     line(0,0,0,-this.height);
-    // 分叉
     line(0,-this.height*0.5,-5,-this.height*0.7);
     line(0,-this.height*0.5,5,-this.height*0.7);
     pop();
@@ -330,4 +336,5 @@ function startExp(){
 }
 
 function resetExp(){ setup(); }
+
 
