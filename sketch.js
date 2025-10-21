@@ -7,9 +7,13 @@ let activeSeed = null;
 let hoveringCellIndex = -1;
 let sprouts = [];
 let experimentStarted = false;
+let cnv; // 存放 canvas 引用
 
 function setup() {
-  createCanvas(900, 600);
+  // 创建 canvas 并确保 z-index 低（不覆盖按钮）
+  cnv = createCanvas(900, 600);
+  cnv.position(0, 0);
+  cnv.style('z-index', '0');
 
   // 种子
   seeds = [];
@@ -22,18 +26,45 @@ function setup() {
   // 培养皿
   pot = new Pot(width / 2 - 200, height / 2 - 120, 400, 240);
 
-  // 水壶和温度计
+  // 水壶和温度计（初始位置）
   kettle = new Kettle(740, 140);
   thermo = new Thermometer(740, 250);
 
-  // 顶端按钮
-  startBtn = createButton("开始");
-  startBtn.position(30, 20);
-  startBtn.mousePressed(startExp);
+  // 顶端按钮（创建一次）
+  if (!startBtn) {
+    startBtn = createButton("开始");
+    startBtn.position(30, 20);
+    startBtn.style('position', 'absolute');
+    startBtn.style('z-index', '1001');
+    startBtn.mousePressed(startExp);
+  }
+  if (!resetBtn) {
+    resetBtn = createButton("复原");
+    resetBtn.position(100, 20);
+    resetBtn.style('position', 'absolute');
+    resetBtn.style('z-index', '1001');
+    resetBtn.mousePressed(resetExp);
+  }
 
-  resetBtn = createButton("复原");
-  resetBtn.position(100, 20);
-  resetBtn.mousePressed(resetExp);
+  // 把按钮尺寸放大为“原来”的两倍（尝试从 DOM 读取当前尺寸）
+  // 若无法读到（offsetWidth==0），使用后备尺寸
+  setTimeout(() => {
+    // 延迟一点点确保 DOM 已渲染，避免读到 0
+    try {
+      let sw = startBtn.elt.offsetWidth || 80;
+      let sh = startBtn.elt.offsetHeight || 28;
+      startBtn.size(sw * 2, sh * 2);
+    } catch (e) {
+      startBtn.size(160, 56);
+    }
+    try {
+      let rw = resetBtn.elt.offsetWidth || 80;
+      let rh = resetBtn.elt.offsetHeight || 28;
+      resetBtn.size(rw * 2, rh * 2);
+    } catch (e) {
+      resetBtn.size(160, 56);
+    }
+  }, 30);
 
   message = "";
   experimentStarted = false;
@@ -397,15 +428,29 @@ function mouseReleased() {
 
 /* ---- 触屏兼容 ---- */
 function touchStarted() {
-  handlePress(touches[0].x, touches[0].y);
-  return false;
+  if (touches && touches.length > 0) {
+    handlePress(touches[0].x, touches[0].y);
+  }
+  // 不要 return false —— 以免阻止按钮的点击事件在某些浏览器被吞掉
+  return true;
 }
 function touchEnded() {
   handleRelease();
-  return false;
+  return true;
 }
 
 function handlePress(mx, my) {
+  // 若点击位置恰好在按钮 DOM 上，直接返回（避免 canvas 拦截）
+  // 使用 document.elementFromPoint 判断（页面坐标，mx,my 即为 canvas 内坐标，canvas 在页面左上角）
+  try {
+    const el = document.elementFromPoint(mx, my);
+    if (el === startBtn.elt || el === resetBtn.elt || startBtn.elt.contains(el) || resetBtn.elt.contains(el)) {
+      return;
+    }
+  } catch (e) {
+    // ignore
+  }
+
   if (thermo.pressed(mx, my)) return;
   if (kettle.pressed(mx, my)) return;
   for (let i = seeds.length - 1; i >= 0; i--) {
@@ -429,6 +474,7 @@ function handleRelease() {
   thermo.released();
 }
 
+// “开始” 按钮逻辑不变
 function startExp() {
   const allHasSeed = pot.cells.every((c) => c.seedId !== null);
   if (!allHasSeed) {
@@ -443,7 +489,33 @@ function startExp() {
   experimentStarted = true;
 }
 
+// 改写后的重置函数：只重置状态，不重复创建 canvas 与按钮
 function resetExp() {
-  setup();
+  // 重置培养皿格子状态
+  for (let c of pot.cells) {
+    c.water = false;
+    c.heat = false;
+    c.seedId = null;
+  }
+  // 重置种子位置与 inCell
+  for (let s of seeds) {
+    s.inCell = -1;
+    s.goHome();
+    s.dragging = false;
+  }
+  // 重置水壶和温度计回到初始位置
+  kettle.x = 740;
+  kettle.y = 140;
+  kettle.dragging = false;
+  thermo.x = 740;
+  thermo.y = 250;
+  thermo.dragging = false;
+
+  // 重置实验状态与消息
+  sprouts = [];
+  experimentStarted = false;
+  message = "";
 }
+
+
 
