@@ -395,11 +395,16 @@ class Sprout {
     this.speed = this.computeSpeed(cell);
     this.angle = random(-0.1, 0.1);
   }
-  computeSpeed(cell) {
-    if (!cell.water && !cell.heat) return 0;
-    if (cell.water && cell.heat) return 5;
-    return 1;
-  }
+    computeSpeed(cell) {
+    // 无水 → 不发芽
+    if (!cell.water) return 0;
+    // 有水但温度低 → 很慢
+    if (cell.water && !cell.heat) return 0.3;
+    // 水 + 温度适宜 → 正常生长
+    if (cell.water && cell.heat) return 3;
+    return 0;
+    }
+
   grow() {
     if (this.height < this.maxHeight) this.height += this.speed * 0.2;
     this.angle = 0.05 * sin(frameCount * 0.1);
